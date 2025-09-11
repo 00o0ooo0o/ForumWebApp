@@ -1,15 +1,29 @@
 import React from 'react'
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { Routes, Route, Link } from 'react-router-dom';
+import { HomePage } from './pages/HomePage';
+import { AboutPage } from './pages/AboutPage';
+import { BlogPage } from './pages/BlogPage';
+import { NotFoundPage } from './pages/NotFoundPage';
 import './App.css'
 
 function App() {
   return (
-    <BrowserRouter>
+    <>
+      <header>
+        <nav>
+          <Link to="/">Home</Link>
+          <Link to="/blog">Blog</Link>
+          <Link to="/about">About</Link>
+        </nav>
+      </header>
+
       <Routes>
-        <Route path="/" element={<h1>Home</h1>} />
-        <Route path="/about" element={<h2>About</h2>} />
+        <Route path='/' element={<HomePage />} />
+        <Route path='/about' element={<AboutPage />} />
+        <Route path='/blog' element={<BlogPage />} />
+        <Route path='*' element={<NotFoundPage />} />
       </Routes>
-    </BrowserRouter>
+    </>
   );
 }
 
