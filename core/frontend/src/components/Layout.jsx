@@ -12,7 +12,7 @@ const Layout = () => {
 
         <Outlet />
             <footer>
-                2021
+                2025
             </footer>
         </>
     )

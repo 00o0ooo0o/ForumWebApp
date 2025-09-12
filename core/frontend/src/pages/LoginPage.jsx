@@ -1,11 +1,45 @@
-import React from 'react'
+import React, {useState} from 'react'
+import axios from 'axios';
 
-const Login = () => {
-    return (
-        <div>
-            <h1>Log In</h1>
-        </div>
-    )
+export function Login() {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+
+  function handleLogin(event) {
+    event.preventDefault();
+
+    axios.post('http://localhost:8000/api/login/', { username, password })
+      .then(response => {
+        console.log('Logged in! Token:', response.data.token);
+      })
+      .catch(err => {
+        console.error('Login error', err);
+        alert("Login failed. Check username and password.");
+      });
+  }
+
+  return (
+    <div>
+      <h1>Log In</h1>
+      <form onSubmit={handleLogin}>
+        <input
+          type="text"
+          placeholder="Username"
+          value={username}
+          onChange={e => setUsername(e.target.value)}
+          required
+        />
+        <br />
+        <input
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={e => setPassword(e.target.value)}
+          required
+        />
+        <br />
+        <button type="submit">Log In</button>
+      </form>
+    </div>
+  );
 }
-
-export {Login};
