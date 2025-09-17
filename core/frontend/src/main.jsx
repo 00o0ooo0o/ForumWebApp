@@ -9,6 +9,7 @@ const root = createRoot(document.getElementById('root'));
 root.render(
   <React.StrictMode>
     <BrowserRouter>
+    {/* Enables <App /> child components to use React Router features like <Routes> and <Route> */}
       <App />
     </BrowserRouter>
   </React.StrictMode>
