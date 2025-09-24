@@ -1,0 +1,67 @@
+/* .signUpButton {
+  display: flex;          
+  gap: 1000px;            
+  justify-content: flex-start; 
+  align-items: center;    
+} */
+
+.signUpButton button{
+  padding: 5px 10px;
+  background-color: #3F2A0C;
+  color: #FFF9F1;
+  width: 70px;
+  height: 25px;
+  border: none;
+  color: 3F2A0C;
+  border-radius: 20px;
+  cursor: pointer;
+
+}
+
+.logInButton button {
+  margin-left: 650px;
+  display: flex;
+  justify-content: center; 
+  padding: 3px 10px;
+  background-color: #FFF9F1;
+  border-color: #3F2A0C;
+  border-width: 1.5px;
+  border-style: solid;
+  width: 70px;
+  height: 25px;
+  color: #3F2A0C;
+  border-radius: 20px;
+  cursor: pointer;
+  /*transition: background-color 0.2s ease-in-out; */
+}
+
+/* .signUpButton button:hover {
+  background-color: #ffffff;
+} */
+
+/* .logInButton button:hover {
+  background-color: #fdfdfd;
+} */
+
+.layout-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 60px;
+  background-color: #FFF9F1;
+  border-bottom: 1px solid #f1ddc7;
+}
+
+.nav-left a {
+  font-size: 18px;
+  text-decoration: none;
+  color: #333;
+  font-weight: bold;
+}
+
+.logo{
+  height: 40px;   
+  width: auto;
+  object-fit: contain;
+  cursor: pointer;
+}

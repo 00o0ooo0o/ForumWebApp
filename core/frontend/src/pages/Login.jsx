@@ -1,5 +1,6 @@
 import React, {useState} from 'react'
 import axios from 'axios';
+import '../css/AuthPage.css'
 
 export function Login() {
   const [username, setUsername] = useState('');
@@ -11,6 +12,7 @@ export function Login() {
     axios.post('http://localhost:8000/api/login/', { username, password })
       .then(response => {
         console.log('Logged in! Token:', response.data.token);
+        //save tokin
       })
       .catch(err => {
         console.error('Login error', err);
@@ -19,7 +21,7 @@ export function Login() {
   }
 
   return (
-    <div>
+    <div class="Auth">
       <h1>Log In</h1>
       <form onSubmit={handleLogin}>
         <input
