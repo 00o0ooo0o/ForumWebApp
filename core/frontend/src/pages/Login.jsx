@@ -12,7 +12,8 @@ export function Login() {
     axios.post('http://localhost:8000/api/login/', { username, password })
       .then(response => {
         console.log('Logged in! Token:', response.data.token);
-        //save tokin
+        alert("Login successful!");
+        //save token
       })
       .catch(err => {
         console.error('Login error', err);

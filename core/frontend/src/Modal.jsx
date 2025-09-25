@@ -32,7 +32,7 @@ export default function Modal({open, children, onClose}){
         <div className="Auth">
         <div style={OVERLAY_STYLE} />
         <div style={MODAL_STYLES}>
-            <button class="closeButton" onClick={onClose}>
+            <button className="closeButton" onClick={onClose}>
                 <img src="/closeButtonImg.png" alt="Close" />
             </button>
             {children}

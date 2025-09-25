@@ -49,11 +49,11 @@ input{
     background-color: #f3ebe2;
     width: 300px;
     height: 33px;
+    padding-left: 10px; 
 }
 
 ::placeholder{
     color: #c4baad;
-    padding-left: 10px;
 }
 
 .Auth{
