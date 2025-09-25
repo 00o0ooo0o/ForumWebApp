@@ -44,7 +44,7 @@ const Layout = () => {
 
             <Modal open={isOpen} onClose={closeModal}>
                 {modalType === 'login' && <Login />}
-                {modalType === 'signup' && <Signup onSwitchToLogin={onSwitchToLogin} />}
+                {modalType === 'signup' && <Signup onSwitchToLogin={onSwitchToLogin}/>}
             </Modal>
 
             <main>

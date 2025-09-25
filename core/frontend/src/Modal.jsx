@@ -29,7 +29,7 @@ export default function Modal({open, children, onClose}){
     
     return ReactDom.createPortal(
         <>
-        <div class="Auth">
+        <div className="Auth">
         <div style={OVERLAY_STYLE} />
         <div style={MODAL_STYLES}>
             <button class="closeButton" onClick={onClose}>

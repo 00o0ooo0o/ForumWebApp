@@ -27,6 +27,7 @@ export function Signup({ onSwitchToLogin }){
         .then(res => {
             console.log(res.data);
             alert("Registration successful!");
+            onSwitchToLogin();
         })
         .catch(error => {
             console.log(error);
@@ -35,7 +36,7 @@ export function Signup({ onSwitchToLogin }){
 
 
     return( //returns jsx - the syntax React uses to describe UI
-        <div class="Auth">
+        <div className="Auth">
             <h1>Sign Up</h1>
 
             <form onSubmit={handleSignup}>
@@ -63,7 +64,7 @@ export function Signup({ onSwitchToLogin }){
                 <br />
                 <button type="Sign Up">Submit</button>
                 
-                <div class="header-line">
+                <div className="header-line">
                     <h2>Already have an account?</h2>  
                     <h3 onClick={onSwitchToLogin}>Log In</h3>
                 </div>
