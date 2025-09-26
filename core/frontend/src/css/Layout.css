@@ -1,9 +1,7 @@
-/* .signUpButton {
-  display: flex;          
-  gap: 1000px;            
-  justify-content: flex-start; 
-  align-items: center;    
-} */
+.GuestRightNavButtons{
+  display: flex;
+  justify-content: center; 
+}
 
 .signUpButton button{
   padding: 5px 10px;
@@ -15,10 +13,10 @@
   color: 3F2A0C;
   border-radius: 20px;
   cursor: pointer;
-
 }
 
 .logInButton button {
+  margin-right: 25px;
   margin-left: 650px;
   display: flex;
   justify-content: center; 
@@ -32,8 +30,21 @@
   color: #3F2A0C;
   border-radius: 20px;
   cursor: pointer;
-  /*transition: background-color 0.2s ease-in-out; */
 }
+
+/* .signOutButton{
+  margin-left: 650px;
+  display: flex;
+  justify-content: center; 
+  background-color: #1229af;
+  border-color: #37f5b3;
+  border-width: 1.5px;
+  border-style: solid;
+  width: 70px;
+  height: 25px;
+  border-radius: 20px;
+  cursor: pointer;
+} */
 
 /* .signUpButton button:hover {
   background-color: #ffffff;

@@ -17,7 +17,7 @@ button{
     cursor: pointer;
     display: flex;
     justify-content: center;
-    padding: 5px 10px;
+    padding: 5px 5px;
     background-color: #3F2A0C;
     color: #FFF9F1;
     width: 70px;
@@ -58,7 +58,6 @@ input{
 
 .Auth{
     padding-top: 0px;
-    /* background-color: aqua; */
     position: relative;  
 }
 

@@ -2,7 +2,7 @@ import React, {useState} from 'react'
 import axios from 'axios';
 import '../css/AuthPage.css'
 
-export function Login() {
+export function Login({ closeModal, onLoginSuccess }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
 
@@ -13,7 +13,11 @@ export function Login() {
       .then(response => {
         console.log('Logged in! Token:', response.data.token);
         alert("Login successful!");
-        //save token
+
+        if (onLoginSuccess) {
+          onLoginSuccess(response.data.username);
+        }
+        closeModal();
       })
       .catch(err => {
         console.error('Login error', err);

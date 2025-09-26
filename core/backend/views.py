@@ -6,14 +6,20 @@ from .serializers import RegisterSerializer
 from django.contrib.auth import authenticate
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
 
-# Receives POST request from frontend api/register/
-# Passes data to the serializer
-# If valid → saves user
-# Returns status response (no token)
+from django.contrib.auth import logout
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+
 
 @api_view(['POST'])
 def register(request):
+    # Receives POST request from frontend api/register/
+    # Passes data to the serializer
+    # If valid → saves user
+    # Returns status response 
     serializer = RegisterSerializer(data=request.data)
     if serializer.is_valid():
         serializer.save()
@@ -38,7 +44,7 @@ def login(request):
             value=access_token,
             httponly=True,
             secure=True,
-            samesite='Strict',
+            samesite='Lax',
             max_age=30*60 #30 minutes
         )
 
@@ -47,9 +53,23 @@ def login(request):
             value=refresh_token,
             httponly=True,
             secure=True,
-            samesite='Strict',
+            samesite='Lax',
             max_age=7*24*60*60 #7days
         )
         return response
     else:
         return Response({"error": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def auth_status(request):
+    return Response({'authenticated': True, 'username': request.user.username})
+
+@csrf_exempt
+def logout_view(request):
+    if request.method == 'POST':
+        logout(request)  # This clears the session
+        response = JsonResponse({'message': 'Logged out successfully'})
+        response.delete_cookie('sessionid')  # Optional: manually delete session cookie
+        return response
+    return JsonResponse({'error': 'Invalid request method'}, status=400)
