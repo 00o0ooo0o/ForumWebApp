@@ -32,28 +32,6 @@
   cursor: pointer;
 }
 
-/* .signOutButton{
-  margin-left: 650px;
-  display: flex;
-  justify-content: center; 
-  background-color: #1229af;
-  border-color: #37f5b3;
-  border-width: 1.5px;
-  border-style: solid;
-  width: 70px;
-  height: 25px;
-  border-radius: 20px;
-  cursor: pointer;
-} */
-
-/* .signUpButton button:hover {
-  background-color: #ffffff;
-} */
-
-/* .logInButton button:hover {
-  background-color: #fdfdfd;
-} */
-
 .layout-header {
   display: flex;
   justify-content: space-between;

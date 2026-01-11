@@ -1,18 +1,15 @@
-from rest_framework.decorators import api_view
-from rest_framework.response import Response
+from rest_framework.decorators import api_view, permission_classes, authentication_classes
 from rest_framework import status
-from .serializers import RegisterSerializer 
-
-from django.contrib.auth import authenticate
-from rest_framework.views import APIView
+from rest_framework_simplejwt.authentication import JWTAuthentication
+from rest_framework.response import Response
+from rest_framework import exceptions
 from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
-
-from django.contrib.auth import logout
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-
+from django.contrib.auth import authenticate
+from .serializers import RegisterSerializer 
+from .authentication import JWTAuthenticationFromCookie
 
 @api_view(['POST'])
 def register(request):
@@ -43,33 +40,40 @@ def login(request):
             key='access_token',
             value=access_token,
             httponly=True,
-            secure=True,
-            samesite='Lax',
-            max_age=30*60 #30 minutes
+            secure=False,  
+            samesite='Lax',  
+            max_age=30*60
         )
 
         response.set_cookie(
             key='refresh_token',
             value=refresh_token,
             httponly=True,
-            secure=True,
+            secure=False,
             samesite='Lax',
-            max_age=7*24*60*60 #7days
+            max_age=7*24*60*60 
         )
         return response
     else:
         return Response({"error": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
 
 @api_view(['GET'])
+@authentication_classes([JWTAuthenticationFromCookie])
 @permission_classes([IsAuthenticated])
 def auth_status(request):
     return Response({'authenticated': True, 'username': request.user.username})
 
 @csrf_exempt
+@api_view(['POST'])
 def logout_view(request):
-    if request.method == 'POST':
-        logout(request)  # This clears the session
-        response = JsonResponse({'message': 'Logged out successfully'})
-        response.delete_cookie('sessionid')  # Optional: manually delete session cookie
-        return response
-    return JsonResponse({'error': 'Invalid request method'}, status=400)
+    response = JsonResponse({'message': 'Logged out successfully'})
+    response.delete_cookie('access_token')
+    response.delete_cookie('refresh_token')
+    return response
+    
+    #NOTES
+# get the Authorization header manually
+# auth_header = request.headers.get('Authorization')
+# get token from a cookie
+# token = request.COOKIES.get('access_token')
+

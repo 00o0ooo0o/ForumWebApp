@@ -1,29 +1,30 @@
-import React, {useState} from 'react'
+import React, { useState, useContext} from 'react'
+import { AuthContext } from '../AuthContext';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import '../css/AuthPage.css'
 
 export function Login({ closeModal, onLoginSuccess }) {
+  const { login } = useContext(AuthContext);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const navigate = useNavigate();
 
-  function handleLogin(event) {
-    event.preventDefault();
+  const handleLogin = async (event) => {
+      event.preventDefault();
+      try {
+          await login(username, password);
+          alert('Login successful!');
+          closeModal();
+          navigate("/member", { replace: true });
+      } catch (err) {
+          console.error('Login error', err);
+          setError('Login failed. Check username and password.');
+      }
+  };
 
-    axios.post('http://localhost:8000/api/login/', { username, password })
-      .then(response => {
-        console.log('Logged in! Token:', response.data.token);
-        alert("Login successful!");
 
-        if (onLoginSuccess) {
-          onLoginSuccess(response.data.username);
-        }
-        closeModal();
-      })
-      .catch(err => {
-        console.error('Login error', err);
-        alert("Login failed. Check username and password.");
-      });
-  }
 
   return (
     <div className="Auth">
