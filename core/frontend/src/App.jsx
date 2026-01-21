@@ -6,6 +6,7 @@ import { GuestHomePage } from './pages/GuestHomePage';
 import { Layout } from './components/Layout';
 import { ProtectedRoutes } from './components/ProtectedRoutes';
 import { AuthProvider } from './AuthContext';
+import { PostPage } from './pages/PostPage';
 import './css/App.css'
 
 function App() {
@@ -16,6 +17,7 @@ function App() {
 
         <Route path="/" element={<Layout />}>
           <Route index element={<GuestHomePage />} />
+          <Route path="posts/:id" element={<PostPage />} />
                   
           <Route element={<ProtectedRoutes />}>
             <Route path="member" element={<MemberHomePage />} />

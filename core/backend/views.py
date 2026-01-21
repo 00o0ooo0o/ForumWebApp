@@ -2,13 +2,16 @@ from rest_framework.decorators import api_view, permission_classes, authenticati
 from rest_framework import status
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.response import Response
+from rest_framework.request import Request
 from rest_framework import exceptions
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.permissions import IsAuthenticated
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth import authenticate
-from .serializers import RegisterSerializer 
+from django.shortcuts import get_object_or_404
+from .serializers import RegisterSerializer, PostSerializer, CommentSerializer
+from .models import Post, Comment
 from .authentication import JWTAuthenticationFromCookie
 
 @api_view(['POST'])
@@ -77,3 +80,44 @@ def logout_view(request):
 # get token from a cookie
 # token = request.COOKIES.get('access_token')
 
+
+
+
+@api_view(['GET'])
+def get_post_list(request):
+    posts = Post.objects.all()
+    serializer = PostSerializer(posts, many=True)
+    return Response(serializer.data)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def create_post(request):
+    serializer = PostSerializer(data=request.data, context={'request': request})
+    if serializer.is_valid():
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['GET'])
+def get_post_by_id(request, post_id):
+    try: 
+        post = Post.objects.get(id=post_id)
+    except Post.DoesNotExist:
+        return Response({"error": "Post not found"}, status=404)
+    serializer = PostSerializer(post)
+    return Response(serializer.data)
+
+
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_post(request, post_id):
+    post = get_object_or_404(Post, pk=post_id)
+    if post.author != request.user:
+        return Response(
+            {"detail": "You do not have permission to delete this post"},
+            status=403
+        )
+    post.delete()
+    return Response(status=204)

@@ -31,3 +31,60 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     def __str__(self):
         return self.email
     
+class Theme(models.TextChoices):
+    # = 'value', 'human readable name'
+    CAT_CHAT = 'cat_chat', 'Cat Chat' 
+    BEHAVIOUR = 'behaviour', 'Behavior'
+    HEALTH_AND_NUTRITION = 'health_and_nutrition', 'Health and Nutrition'
+    CAT_EMERGENCIES = 'cat_emergencies', 'Cat Emergencies'
+    CATS_IN_NEED = 'cats_in_need', 'Cats In Need'
+
+
+class Post(models.Model):
+    author = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='posts')
+    #on_delete=models.CASCADE - if user is deleted, their posts are automatically deleted
+    theme = models.CharField(max_length=20, choices=Theme.choices, default=Theme.CAT_CHAT)
+    creation_date_time = models.DateTimeField(auto_now_add=True)
+    views_n = models.IntegerField(default=0)
+    likes_n = models.IntegerField(default=0)
+    comments_n = models.IntegerField(default=0)
+    title = models.CharField(max_length=150)
+    content = models.TextField()
+
+    def increment_views(self):
+        self.views_n += 1
+        self.save(update_fields=['views_n'])
+
+    def add_like(self):
+        self.likes_n += 1
+        self.save(update_fields=['likes_n'])
+
+    def add_comment(self):
+        self.comments_n += 1
+        self.save(update_fields=['comments_n'])
+
+
+
+class Comment(models.Model):
+    post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name='comments')
+    author = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
+    parent = models.ForeignKey(
+        'self',
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name='replies'
+    )
+    content = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def is_root(self):
+        return self.parent is None
+
+    def replies_count(self):
+        return self.replies.count()
+    
+    def get_replies(self):
+        return self.replies.all()
+
+
