@@ -25,33 +25,6 @@ class RegisterSerializer(serializers.ModelSerializer):
         return user
     
     
-class PostSerializer(serializers.ModelSerializer):
-    author = serializers.CharField(source='author.username', read_only=True)
-
-    likes_n = serializers.IntegerField(read_only=True)
-    views_n = serializers.IntegerField(read_only=True)
-    comments_n = serializers.IntegerField(read_only=True)
-    
-    class Meta: 
-        model = Post
-        fields = ['id', 'author', 'theme', 'title', 'content',
-    'likes_n', 'comments_n', 'views_n', 'creation_date_time']
-
-    def create(self, validated_data):
-        user = self.context['request'].user  
-        post = Post.objects.create(author=user, **validated_data)
-        return post
-    
-    def validate_title(self, value):
-        if not value.strip(): # .strip() removes blank spaces
-            raise serializers.ValidationError("Post title cannot be empty")
-        return value
-
-    def validate_content(self, value):
-        if not value.strip():
-            raise serializers.ValidationError("Post content cannot be empty")
-        return value
-
 
 class CommentSerializer(serializers.ModelSerializer):
     author = serializers.CharField(source='author.username', read_only=True)
@@ -75,3 +48,34 @@ class CommentSerializer(serializers.ModelSerializer):
     def get_replies(self, obj):
         serializer = CommentSerializer(obj.replies.all(), many=True)
         return serializer.data
+    
+
+    
+class PostSerializer(serializers.ModelSerializer):
+    author = serializers.CharField(source='author.username', read_only=True)
+
+    likes_n = serializers.IntegerField(read_only=True)
+    views_n = serializers.IntegerField(read_only=True)
+    comments_n = serializers.IntegerField(read_only=True)
+
+    comments = CommentSerializer(many=True, read_only=True) 
+
+    class Meta: 
+        model = Post
+        fields = ['id', 'author', 'theme', 'title', 'content',
+    'likes_n', 'comments_n', 'views_n', 'creation_date_time', 'comments']
+
+    def create(self, validated_data):
+        user = self.context['request'].user  
+        post = Post.objects.create(author=user, **validated_data)
+        return post
+    
+    def validate_title(self, value):
+        if not value.strip(): # .strip() removes blank spaces
+            raise serializers.ValidationError("Post title cannot be empty")
+        return value
+
+    def validate_content(self, value):
+        if not value.strip():
+            raise serializers.ValidationError("Post content cannot be empty")
+        return value

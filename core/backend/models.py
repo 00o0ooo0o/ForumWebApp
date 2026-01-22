@@ -51,18 +51,21 @@ class Post(models.Model):
     title = models.CharField(max_length=150)
     content = models.TextField()
 
-    def increment_views(self):
-        self.views_n += 1
-        self.save(update_fields=['views_n'])
+    likes = models.ManyToManyField(CustomUser, related_name='liked_posts', blank=True)
 
     def add_like(self):
         self.likes_n += 1
         self.save(update_fields=['likes_n'])
 
+    def remove_like(self, user):
+        if user in self.likes.all():
+            self.likes.remove(user)
+            self.likes_n = self.likes.count()
+            self.save(update_fields=['likes_n'])
+
     def add_comment(self):
         self.comments_n += 1
         self.save(update_fields=['comments_n'])
-
 
 
 class Comment(models.Model):

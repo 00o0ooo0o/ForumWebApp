@@ -1,11 +1,12 @@
 from rest_framework.decorators import api_view, permission_classes, authentication_classes
-from rest_framework import status
+from rest_framework import status, viewsets
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.response import Response
 from rest_framework.request import Request
 from rest_framework import exceptions
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.decorators import action
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth import authenticate
@@ -108,8 +109,6 @@ def get_post_by_id(request, post_id):
     return Response(serializer.data)
 
 
-
-
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])
 def delete_post(request, post_id):
@@ -127,6 +126,19 @@ def delete_post(request, post_id):
 @permission_classes([IsAuthenticated])
 def edit_post(request, post_id):
     post = get_object_or_404(Post, pk=post_id)
+
+    if 'like' in request.data:
+        if request.user in post.likes.all():
+            post.likes.remove(request.user)
+            liked = False
+        else:
+            post.likes.add(request.user)
+            liked = True
+            
+        post.likes_n = post.likes.count()
+        post.save(update_fields=['likes_n'])
+        serializer = PostSerializer(post)
+        return Response({'liked': liked, 'likes_count': post.likes_n, 'post': serializer.data}, status=200)
 
     if post.author != request.user:
         return Response(

@@ -12,13 +12,14 @@ const PostPage = () => {
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
     const [isEditing, setIsEditing] = useState(false);
-
+    const [liked, setLiked] = useState(false);
 
     useEffect(() => {
         const getPost = async () => { 
             try {
                 const res = await axios.get(`http://localhost:8000/api/posts/${id}/`, { withCredentials: true });
-                setPost(res.data); 
+                setPost(res.data);
+                setLiked(res.data.liked); 
             } catch (err) {
                 console.error(err.response?.data || err);
             }
@@ -58,6 +59,24 @@ const PostPage = () => {
         }
     };
 
+
+    const handleLike = async(e) => {
+        e.preventDefault();
+        try{
+            const res = await axios.patch(`http://localhost:8000/api/posts/${id}/edit/`,
+            {like: true}, { withCredentials: true});
+
+            setLiked(res.data.liked);
+            setPost(prev => ({ ...prev, likes_n: res.data.likes_count })); 
+            //new post object with previous field values besides line_n
+
+            console.log("Liked");
+        
+        } catch (err) {
+            console.error(err.response?.data || err);
+        }
+    };
+
     return (
         <div>
         {!isEditing ? (
@@ -66,6 +85,8 @@ const PostPage = () => {
                 <h3>{post.title}</h3>
                 <p>{post.content}</p>
                 <span>by {post.author}</span>
+
+                <button type="button" onClick={handleLike}> {liked ? '❤️' : '🤍'} {post.likes_n}</button>
 
                 {isAuthenticated && username === post.author && (
                 <div>
