@@ -121,3 +121,20 @@ def delete_post(request, post_id):
         )
     post.delete()
     return Response(status=204)
+
+
+@api_view(['PATCH'])
+@permission_classes([IsAuthenticated])
+def edit_post(request, post_id):
+    post = get_object_or_404(Post, pk=post_id)
+
+    if post.author != request.user:
+        return Response(
+            {"detail": "You do not have permission to edit this post"}, status=403)
+    
+    serializer = PostSerializer(post, data=request.data, partial=True)
+
+    if serializer.is_valid():
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

@@ -27,6 +27,11 @@ class RegisterSerializer(serializers.ModelSerializer):
     
 class PostSerializer(serializers.ModelSerializer):
     author = serializers.CharField(source='author.username', read_only=True)
+
+    likes_n = serializers.IntegerField(read_only=True)
+    views_n = serializers.IntegerField(read_only=True)
+    comments_n = serializers.IntegerField(read_only=True)
+    
     class Meta: 
         model = Post
         fields = ['id', 'author', 'theme', 'title', 'content',

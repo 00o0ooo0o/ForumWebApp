@@ -6,57 +6,104 @@ import axios from 'axios';
 
 const PostPage = () => {
     const { username, isAuthenticated } = useContext(AuthContext);
-    const [post, setPosts] = useState(null);
+    const [post, setPost] = useState(null);
     const {id} = useParams();
     const navigate = useNavigate();
+    const [title, setTitle] = useState('');
+    const [content, setContent] = useState('');
+    const [isEditing, setIsEditing] = useState(false);
+
 
     useEffect(() => {
-        const getPosts = async () => { 
+        const getPost = async () => { 
             try {
                 const res = await axios.get(`http://localhost:8000/api/posts/${id}/`, { withCredentials: true });
-                setPosts(res.data); 
+                setPost(res.data); 
             } catch (err) {
-                console.error(err);
+                console.error(err.response?.data || err);
             }
         };
 
-        getPosts();
-    }, [id]); 
+        setIsEditing(false);
+        setTitle('');
+        setContent('');
+
+        getPost();
+    }, [id, isAuthenticated, navigate]);
 
 
     const handleDelete = async (e) => {
         e.preventDefault();
         try {
-            const res = await axios.delete(`http://localhost:8000/api/posts/${id}/delete/`,
-                { withCredentials: true }
-            );
+            await axios.delete(`http://localhost:8000/api/posts/${id}/delete/`,
+                { withCredentials: true });
             navigate('/member/'); 
-            setPosts(res.data);
         } catch (err) {
             console.error(err.response?.data || err);
         }
     };
 
 
-    return(
+    const handleEdit = async (e) => {
+        e.preventDefault();
+        try{
+            const res = await axios.patch(`http://localhost:8000/api/posts/${id}/edit/`,
+            {title, content}, { withCredentials: true});
+
+            setPost(res.data);         
+            setIsEditing(false);
+
+        } catch (err) {
+            console.error(err.response?.data || err);
+        }
+    };
+
+    return (
         <div>
-            {post ? (
+        {!isEditing ? (
+            post ? (
             <div>
                 <h3>{post.title}</h3>
                 <p>{post.content}</p>
                 <span>by {post.author}</span>
+
+                {isAuthenticated && username === post.author && (
+                <div>
+                    <button onClick={handleDelete}>Delete</button>
+                    <button onClick={() => {
+                        setTitle(post.title);
+                        setContent(post.content);
+                        setIsEditing(true);
+                    }}>Edit</button>
+                </div>
+                )}
             </div>
             ) : (
-                <p>It's empty here...</p>
-            )}
+            <p>It's empty here...</p>
+            )
+        ) : (
+            <form onSubmit={handleEdit}>
+                <div>
+                    <label>Title:</label>
+                    <input
+                    type="text"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder="Edit post title"/>
+                </div>
 
+                <div>
+                    <label>Content:</label>
+                    <textarea
+                    value={content}
+                    onChange={(e) => setContent(e.target.value)}
+                    placeholder="Edit post content"/>
+                </div>
 
-            {post && isAuthenticated && username === post.author && (
-                <>
-                    <button onClick={handleDelete}>Delete Post</button>
-                </>
-            )}
-
+                <button type="submit">Submit changes</button>
+                <button type="button" onClick={() => setIsEditing(false)}>Cancel</button>
+            </form>
+        )}
         </div>
     );
 };
