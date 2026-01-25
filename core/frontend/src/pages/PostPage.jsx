@@ -15,16 +15,16 @@ const PostPage = () => {
     const [title, setTitle] = useState('');
     const [isPostEditing, setIsPostEditing] = useState(false);
     const [isCommentEditing, setIsCommentEditing] = useState(false);
-    const [editingCommentId, setEditingCommentId] = useState(null);
     const [postContent, setPostContent] = useState('');
     const [commentContent, setCommentContent] = useState('');
     const [liked, setLiked] = useState(false);
-    const [replies, setReplies] = useState({})
+    const [replies, setReplies] = useState({}); //  1: [reply1, reply2],   2: [reply1], ...
     const [repliesOpen, setRepliesOpen] = useState({});
     const [replyTo, setReplyTo] = useState(null); 
     const [replyContent, setReplyContent] = useState('');
     const [repliesPagination, setRepliesPagination] = useState({});
 
+    const [editingComment, setEditingComment] = useState(null);
 
 
     useEffect(() => {
@@ -118,25 +118,35 @@ const PostPage = () => {
     };
 
 
-    const handleDeleteComment = async (comment_id) => {        
+    const handleDeleteComment = async (comment_id, parent_id) => {        
         try{
            await axios.delete(`/dashboard/comments/${comment_id}/delete/`, { withCredentials: true });       
             console.log('Comment deleted');
-            setComment(prev => prev.filter(c => c.id !== comment_id));         
+            if (parent_id != null){
+                setReplies(prev => ({...prev, [parent_id]: prev[parent_id].filter(r => r.id !== comment_id)}));
+            } else {
+                setComment(prev => prev.filter(c => c.id !== comment_id)); 
+            }        
         } catch (err) {
             console.error(err.response?.data || err);
         }
     };
 
 
-    const handleEditComment = async (e, comment_id) => {
+    const handleEditComment = async (e) => {
         e.preventDefault();
+        if (!editingComment) return;
+        const { id, parent_id } = editingComment;
         try{
-            const res = await axios.patch(`/dashboard/comments/${comment_id}/edit/`,
+            const res = await axios.patch(`/dashboard/comments/${id}/edit/`,
             {content: commentContent }, { withCredentials: true});
 
-            setComment(prev => prev.map(c => c.id === comment_id ? res.data : c)); 
-            setEditingCommentId(null);
+            if (parent_id === null) {
+                setComment(prev => prev.map(c => c.id === id ? res.data : c));
+            } else {
+                setReplies(prev => ({...prev, [parent_id]: prev[parent_id].map(r => r.id === id ? res.data : r )}));
+            }
+            setEditingComment(null);
             setCommentContent('');
             setIsCommentEditing(false);
 
@@ -242,6 +252,8 @@ const PostPage = () => {
         );
     };
 
+
+
     const renderComments = () => {
         return (
             <div>
@@ -253,7 +265,6 @@ const PostPage = () => {
                                 <button onClick={() => toggleReplies(c.id)}>
                                     {repliesOpen[c.id] ? 'hide r' : 'open r'}
                                 </button>
-
                             </div>
 
 
@@ -265,7 +276,10 @@ const PostPage = () => {
                                             <button onClick={() => {
                                                 setCommentContent(c.content);
                                                 setIsCommentEditing(true);
-                                                setEditingCommentId(c.id);
+                                                setEditingItem({
+                                                    id: c.id,
+                                                    parent_id: null
+                                                });
                                             }}>edit</button>
                                         </>
                                     )}
@@ -278,6 +292,15 @@ const PostPage = () => {
                                     {replies[c.id].map(r => (
                                         <div key={r.id}>
                                             <strong>{r.author}</strong>: {r.content}
+                                            <button onClick={() => handleDeleteComment(r.id, c.id)}>delete</button>
+                                            <button onClick={() => {
+                                                setCommentContent(r.content);
+                                                setIsCommentEditing(true);
+                                                setEditingComment({
+                                                    id: r.id,
+                                                    parent_id: c.id
+                                                });
+                                            }}>edit</button>
                                         </div>
                                     ))}
 
@@ -287,7 +310,7 @@ const PostPage = () => {
                                 </>
                             )}
 
-
+                            {/* adding a reply */}
                             {replyTo === c.id && isAuthenticated && (
                                 <form onSubmit={(e) => handleAddReply(e, c.id)}>
                                     <textarea
@@ -308,6 +331,7 @@ const PostPage = () => {
                     <p>No comments yet...</p>
                 )}
 
+                {/* adding a comment */}
                 {isAuthenticated? (
                     <form onSubmit={handleAddComment}>
                         <div>
@@ -349,7 +373,7 @@ const PostPage = () => {
                     <p>It's empty here...</p>
                 )            
             ) : !isPostEditing && isCommentEditing ? (
-                <form onSubmit={(e) => handleEditComment(e, editingCommentId)}>
+                <form onSubmit={(e) => handleEditComment(e)}>
                     <div>
                         <label>Your comment:</label>
                         <textarea
