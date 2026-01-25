@@ -58,10 +58,10 @@ class Post(models.Model):
         self.save(update_fields=['likes_n'])
 
     def remove_like(self, user):
-        if user in self.likes.all():
+        if self.likes.filter(id=user.id).exists():
             self.likes.remove(user)
             self.likes_n = self.likes.count()
-            self.save(update_fields=['likes_n'])
+            self.save(update_fields=['likes_n']) 
 
     def add_comment(self):
         self.comments_n += 1
@@ -80,6 +80,7 @@ class Comment(models.Model):
     )
     content = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
+    depth = models.PositiveIntegerField(default=0)
 
     def is_root(self):
         return self.parent is None
@@ -89,5 +90,3 @@ class Comment(models.Model):
     
     def get_replies(self):
         return self.replies.all()
-
-

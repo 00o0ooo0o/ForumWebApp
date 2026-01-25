@@ -7,6 +7,7 @@ from rest_framework import exceptions
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import action
+from django.views.decorators.http import require_GET
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth import authenticate
@@ -14,6 +15,7 @@ from django.shortcuts import get_object_or_404
 from .serializers import RegisterSerializer, PostSerializer, CommentSerializer
 from .models import Post, Comment
 from .authentication import JWTAuthenticationFromCookie
+
 
 @api_view(['POST'])
 def register(request):
@@ -99,14 +101,23 @@ def create_post(request):
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+
 @api_view(['GET'])
 def get_post_by_id(request, post_id):
     try: 
         post = Post.objects.get(id=post_id)
+        # comments = Comment.objects.filter(post=post)
+        root_comments = Comment.objects.filter(post=post, parent__isnull=True)
     except Post.DoesNotExist:
         return Response({"error": "Post not found"}, status=404)
-    serializer = PostSerializer(post)
-    return Response(serializer.data)
+    
+    post_serializer = PostSerializer(post)
+    comment_serializer = CommentSerializer(root_comments, many=True)
+    
+    return Response({
+        "post": post_serializer.data,
+        "comments": comment_serializer.data
+    })
 
 
 @api_view(['DELETE'])
@@ -134,7 +145,7 @@ def edit_post(request, post_id):
         else:
             post.likes.add(request.user)
             liked = True
-            
+
         post.likes_n = post.likes.count()
         post.save(update_fields=['likes_n'])
         serializer = PostSerializer(post)
@@ -150,3 +161,72 @@ def edit_post(request, post_id):
         serializer.save()
         return Response(serializer.data, status=status.HTTP_200_OK)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def create_comment(request, post_id):
+    post = get_object_or_404(Post, id=post_id)
+
+    parent = None
+    parent_id = request.data.get('parent_id')
+    if parent_id:
+        parent = get_object_or_404(Comment, id=parent_id, post=post)
+
+    serializer = CommentSerializer(data=request.data)
+    if serializer.is_valid():
+        serializer.save(
+            author=request.user,
+            post=post,
+            parent=parent  
+        )
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_comment(request, comment_id):
+    comment = get_object_or_404(Comment, pk=comment_id)
+    if comment.author != request.user:
+        return Response(
+            {"detail": "You do not have permission to delete this comment"},
+            status=403
+        )
+    comment.delete()
+    return Response(status=204)
+
+
+@api_view(['PATCH'])
+@permission_classes([IsAuthenticated])
+def edit_comment(request, comment_id):
+    comment = get_object_or_404(Comment, pk=comment_id)
+    if comment.author != request.user:
+        return Response(
+            {"detail": "You do not have permission to edit this comment"},
+            status=403
+        )
+    serializer = CommentSerializer(comment, data=request.data, partial=True)
+    if serializer.is_valid():
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET'])
+def get_comment_replies(request, comment_id):
+    limit = min(int(request.GET.get('limit', 5)), 50)
+    offset = max(int(request.GET.get('offset', 0)), 0)
+    parent = get_object_or_404(Comment, pk=comment_id)
+    queryset = Comment.objects.filter(parent_id=comment_id).order_by('created_at')
+    total = queryset.count()
+    replies = queryset[offset:offset + limit]
+    serializer = CommentSerializer(replies, many=True)
+    return Response({"results": serializer.data, "has_more": offset + limit < total})
+
+    # SELECT * FROM comments
+    # WHERE parent_id = 1
+    # ORDER BY created_at
+    # LIMIT 5 OFFSET 0;

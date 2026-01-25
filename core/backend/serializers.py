@@ -35,19 +35,17 @@ class CommentSerializer(serializers.ModelSerializer):
         model = Comment
         fields = ['id', 'post', 'author', 'parent', 'content', 'created_at', 'replies']
 
-    def create(self, validated_data):
-        user = self.context['request'].user  
-        comment = Comment.objects.create(author=user, **validated_data)
-        return comment
-    
     def validate_content(self, value):
         if not value.strip():
             raise serializers.ValidationError("Comment content cannot be empty")
         return value
     
     def get_replies(self, obj):
-        serializer = CommentSerializer(obj.replies.all(), many=True)
-        return serializer.data
+        return CommentSerializer(
+            obj.replies.all(),
+            many=True,
+            context=self.context
+        ).data
     
 
     

@@ -17,7 +17,7 @@ function App() {
 
         <Route path="/" element={<Layout />}>
           <Route index element={<GuestHomePage />} />
-          <Route path="posts/:id" element={<PostPage />} />
+          <Route path="posts/:post_id" element={<PostPage />} />
                   
           <Route element={<ProtectedRoutes />}>
             <Route path="member" element={<MemberHomePage />} />
