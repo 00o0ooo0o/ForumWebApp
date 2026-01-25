@@ -99,18 +99,24 @@ const PostPage = () => {
 
 //COMMENT FUNCTIONS
 
-    const handleAddComment = async (e) => {
+    const handleAddComment = async (e, parent_id = null) => {
+
+        const contentToSend = parent_id ? newReply : newComment;
         e.preventDefault();
         try{
             const res = await axios.post(
                 `/dashboard/posts/${post_id}/comments/`, 
-                { content: newComment }, 
+                { content: contentToSend }, 
                 { withCredentials: true }
             );
-
-            console.log('Comment created:', res.data);
-            setComment(prev => [...prev, res.data]);
-            setNewComment('');
+            if (parent_id != null){
+                setReplies(prev => ({...prev, [parent_id]: [...(prev[parent_id] || []), res.data]}));
+                setNewReply('');
+                setReplyTo(null);
+            } else {
+                setComment(prev => [...prev, res.data]);
+                setNewComment('');
+            } 
         } catch (err) { 
             console.error(err.response?.data || err);
         }
@@ -157,18 +163,7 @@ const PostPage = () => {
 
 
 //REPLY FUNCTIONS
-        
-
-    const toggleReplies = (commentId) => {
-        const isCurrentlyOpen = repliesOpen[commentId];
-        if (!isCurrentlyOpen) {
-            if (!replies[commentId] || replies[commentId].length === 0) {
-                loadMoreReplies(commentId);
-            }
-        }
-        setRepliesOpen(prev => ({ ...prev, [commentId]: !isCurrentlyOpen }));
-    };
-    
+            
 
     const loadMoreReplies = async (commentId) => {
         const pagination = repliesPagination[commentId] || { limit: 5, offset: 0, hasMore: true };
@@ -231,6 +226,7 @@ const PostPage = () => {
                             repliesOpen={repliesOpen}
                             setReplies={setReplies}
                             setRepliesOpen={setRepliesOpen}
+                            onAdd={handleAddComment}
                             onDelete={handleDeleteComment}
                             onEdit={handleEditComment}
                             onReply={setReplyTo}
