@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { AuthContext } from '../AuthContext';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { Comment } from './Comment';
 
 const PostPage = () => {
     const {username, isAuthenticated} = useContext(AuthContext);
@@ -21,9 +22,7 @@ const PostPage = () => {
     const [replies, setReplies] = useState({}); //  1: [reply1, reply2],   2: [reply1], ...
     const [repliesOpen, setRepliesOpen] = useState({});
     const [replyTo, setReplyTo] = useState(null); 
-    const [replyContent, setReplyContent] = useState('');
     const [repliesPagination, setRepliesPagination] = useState({});
-
     const [editingComment, setEditingComment] = useState(null);
 
 
@@ -162,18 +161,11 @@ const PostPage = () => {
 
     const toggleReplies = (commentId) => {
         const isCurrentlyOpen = repliesOpen[commentId];
-        if (isCurrentlyOpen) {
-            setReplies(prev => ({ ...prev, [commentId]: [] }));
-            setRepliesPagination(prev => ({
-                ...prev,
-                [commentId]: { limit: 5, offset: 0, hasMore: true }
-            }));
-        } else {
+        if (!isCurrentlyOpen) {
             if (!replies[commentId] || replies[commentId].length === 0) {
                 loadMoreReplies(commentId);
             }
         }
-
         setRepliesOpen(prev => ({ ...prev, [commentId]: !isCurrentlyOpen }));
     };
     
@@ -209,33 +201,6 @@ const PostPage = () => {
 
 
 
-    const handleAddReply = async (e, parentId) => {
-        e.preventDefault();
-        try{
-            const res = await axios.post(
-                `/dashboard/posts/${post_id}/comments/`, 
-                { content: newReply, parent_id: parentId }, 
-                { withCredentials: true }
-            );
-
-            setReplies(prev => ({
-                ...prev,
-                [parentId]: prev[parentId]
-                    ? [...prev[parentId], res.data]
-                    : [res.data]
-            }));
-
-            setNewReply('');
-            setReplyTo(null);
-            setRepliesOpen(prev => ({ ...prev, [parentId]: true }));
-
-        } catch (err) {
-            console.error(err.response?.data || err);
-        }
-    }; 
-
-
-
 //RENDER FUNCTIONS
 
     const renderPostButtons = () => {
@@ -259,73 +224,30 @@ const PostPage = () => {
             <div>
                 {comment.length > 0 ? (
                     comment.map(c => (
-                        <div key={c.id}>
-                            <div>
-                                <strong>{c.author}</strong>: {c.content}
-                                <button onClick={() => toggleReplies(c.id)}>
-                                    {repliesOpen[c.id] ? 'hide r' : 'open r'}
-                                </button>
-                            </div>
-
-
-                            {isAuthenticated && (
-                                <div>
-                                    {username === c.author && (
-                                        <>
-                                            <button onClick={() => handleDeleteComment(c.id)}>delete</button>
-                                            <button onClick={() => {
-                                                setCommentContent(c.content);
-                                                setIsCommentEditing(true);
-                                                setEditingItem({
-                                                    id: c.id,
-                                                    parent_id: null
-                                                });
-                                            }}>edit</button>
-                                        </>
-                                    )}
-                                    <button onClick={() => setReplyTo(c.id)}>reply</button>
-                                </div>
-                            )}
-
-                            {repliesOpen[c.id] && replies[c.id] && (
-                                <>
-                                    {replies[c.id].map(r => (
-                                        <div key={r.id}>
-                                            <strong>{r.author}</strong>: {r.content}
-                                            <button onClick={() => handleDeleteComment(r.id, c.id)}>delete</button>
-                                            <button onClick={() => {
-                                                setCommentContent(r.content);
-                                                setIsCommentEditing(true);
-                                                setEditingComment({
-                                                    id: r.id,
-                                                    parent_id: c.id
-                                                });
-                                            }}>edit</button>
-                                        </div>
-                                    ))}
-
-                                    {repliesPagination[c.id]?.hasMore && (
-                                        <button onClick={() => loadMoreReplies(c.id)}>more</button>
-                                    )}
-                                </>
-                            )}
-
-                            {/* adding a reply */}
-                            {replyTo === c.id && isAuthenticated && (
-                                <form onSubmit={(e) => handleAddReply(e, c.id)}>
-                                    <textarea
-                                        value={newReply}
-                                        onChange={(e) => setNewReply(e.target.value)}
-                                        placeholder="Write a reply..."
-                                    />
-                                    <button type="submit">Send</button>
-                                    <button type="button" onClick={() => setReplyTo(null)}>
-                                        Cancel
-                                    </button>
-                                </form>
-                            )}
-
-                        </div>
+                        <Comment
+                            key={c.id}
+                            commentItem={c}
+                            replies={replies}
+                            repliesOpen={repliesOpen}
+                            setReplies={setReplies}
+                            setRepliesOpen={setRepliesOpen}
+                            onDelete={handleDeleteComment}
+                            onEdit={handleEditComment}
+                            onReply={setReplyTo}
+                            loadMoreReplies={loadMoreReplies}
+                            replyTo={replyTo}
+                            setReplyTo={setReplyTo}
+                            isAuthenticated={isAuthenticated}
+                            username={username}
+                            newReply={newReply}
+                            setNewReply={setNewReply}
+                            commentContent={commentContent}
+                            setCommentContent={setCommentContent}
+                            isCommentEditing={isCommentEditing}
+                            setIsCommentEditing={setIsCommentEditing}
+                            editingItem={editingComment}
+                            setEditingItem={setEditingComment}
+                        />
                     ))
                 ) : (
                     <p>No comments yet...</p>
@@ -350,6 +272,8 @@ const PostPage = () => {
             </div>
         );
     };
+
+
 
 
     return (
