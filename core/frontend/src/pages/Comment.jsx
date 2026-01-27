@@ -1,7 +1,4 @@
-import React, { useEffect, useState, useContext } from 'react';
-import { useParams } from 'react-router-dom';
-import { AuthContext } from '../AuthContext';
-import { useNavigate } from 'react-router-dom';
+import React from 'react';
 import axios from 'axios';
 
 const Comment = ({
@@ -27,7 +24,9 @@ const Comment = ({
     setIsCommentEditing,
     editingItem,
     setEditingItem,
-    level = 0
+    level = 0,
+    repliesPagination,
+    repliesCount
 }) => {
 
     const handleToggleReplies = () => {
@@ -37,7 +36,7 @@ const Comment = ({
         }
         setRepliesOpen(prev => ({ ...prev, [commentItem.id]: !isOpen }));
     };
-    
+
 
     return (
         <div key={commentItem.id} style={{ paddingLeft: `${level * 20}px` }}>
@@ -68,6 +67,10 @@ const Comment = ({
                 </div>
             )}
 
+            <div>
+                {repliesCount} {repliesCount === 1 ? 'reply' : 'replies'}
+            </div>
+
             {repliesOpen[commentItem.id] && replies[commentItem.id] && (
                 <>
                     {replies[commentItem.id].map(reply => (
@@ -96,8 +99,14 @@ const Comment = ({
                             setIsCommentEditing={setIsCommentEditing}
                             editingItem={editingItem}
                             setEditingItem={setEditingItem}
+                            repliesPagination={repliesPagination}
+                            repliesCount={reply.replies_count}
                         />
                     ))}
+
+                    {repliesPagination[commentItem.id]?.hasMore && (
+                        <button onClick={() => loadMoreReplies(commentItem.id)}>more</button>
+                    )}
                 </>
             )}
 

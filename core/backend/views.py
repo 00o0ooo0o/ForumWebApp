@@ -106,14 +106,13 @@ def create_post(request):
 def get_post_by_id(request, post_id):
     try: 
         post = Post.objects.get(id=post_id)
-        # comments = Comment.objects.filter(post=post)
-        root_comments = Comment.objects.filter(post=post, parent__isnull=True)
     except Post.DoesNotExist:
         return Response({"error": "Post not found"}, status=404)
     
     post_serializer = PostSerializer(post)
-    comment_serializer = CommentSerializer(root_comments, many=True)
-    
+    root_comments = post.comments.filter(parent__isnull=True)
+    comment_serializer = CommentSerializer(root_comments, many=True, context={'request': request})
+
     return Response({
         "post": post_serializer.data,
         "comments": comment_serializer.data
@@ -224,9 +223,4 @@ def get_comment_replies(request, comment_id):
     total = queryset.count()
     replies = queryset[offset:offset + limit]
     serializer = CommentSerializer(replies, many=True)
-    return Response({"results": serializer.data, "has_more": offset + limit < total})
-
-    # SELECT * FROM comments
-    # WHERE parent_id = 1
-    # ORDER BY created_at
-    # LIMIT 5 OFFSET 0;
+    return Response({"results": serializer.data, "has_more": offset + limit < total, "total_count": total})

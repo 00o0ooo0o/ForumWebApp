@@ -1,5 +1,6 @@
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.db import models
+from django.db.models import F
 
 class CustomUserManager(BaseUserManager):
     def create_user(self, username, password, **extra_fields):
@@ -81,6 +82,7 @@ class Comment(models.Model):
     content = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
     depth = models.PositiveIntegerField(default=0)
+    descendants_count = models.IntegerField(default=0)
 
     def is_root(self):
         return self.parent is None
@@ -90,3 +92,27 @@ class Comment(models.Model):
     
     def get_replies(self):
         return self.replies.all()
+    
+    def save(self, *args, **kwargs):
+        is_new = self.pk is None
+        if self.parent:
+            self.depth = self.parent.depth + 1
+        super().save(*args, **kwargs)
+
+        if is_new and self.parent:
+            self._increment_ancestors_count(1)
+
+    def delete(self, *args, **kwargs):
+        total_to_remove = 1 + self.total_replies_count()
+        if self.parent:
+            self._increment_ancestors_count(-total_to_remove)
+        super().delete(*args, **kwargs)
+
+    def total_replies_count(self):
+        return self.descendants_count
+    
+    def _increment_ancestors_count(self, amount):
+        parent = self.parent
+        while parent:
+            Comment.objects.filter(pk=parent.pk).update(descendants_count=F('descendants_count') + amount)
+            parent = parent.parent

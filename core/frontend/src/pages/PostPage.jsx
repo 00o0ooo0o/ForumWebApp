@@ -106,13 +106,14 @@ const PostPage = () => {
         try{
             const res = await axios.post(
                 `/dashboard/posts/${post_id}/comments/`, 
-                { content: contentToSend }, 
+                { content: contentToSend, parent_id: parent_id }, 
                 { withCredentials: true }
             );
             if (parent_id != null){
                 setReplies(prev => ({...prev, [parent_id]: [...(prev[parent_id] || []), res.data]}));
                 setNewReply('');
                 setReplyTo(null);
+                setComment(prev => prev.map(c => c.id === parent_id ? { ...c, replies_count: c.replies_count + 1 } : c));
             } else {
                 setComment(prev => [...prev, res.data]);
                 setNewComment('');
@@ -129,6 +130,12 @@ const PostPage = () => {
             console.log('Comment deleted');
             if (parent_id != null){
                 setReplies(prev => ({...prev, [parent_id]: prev[parent_id].filter(r => r.id !== comment_id)}));
+                const parent = comment.find(c => c.id === parent_id);
+                const removedComment = replies[parent_id].find(r => r.id === comment_id);
+                const decrement = (removedComment?.replies_count || 0) + 1;
+
+                setReplies(prev => ({...prev, [parent_id]: prev[parent_id].filter(r => r.id !== comment_id)}));
+                setComment(prev => prev.map(c => c.id === parent_id ? { ...c, replies_count: c.replies_count - decrement } : c));
             } else {
                 setComment(prev => prev.filter(c => c.id !== comment_id)); 
             }        
@@ -213,7 +220,6 @@ const PostPage = () => {
     };
 
 
-
     const renderComments = () => {
         return (
             <div>
@@ -243,6 +249,8 @@ const PostPage = () => {
                             setIsCommentEditing={setIsCommentEditing}
                             editingItem={editingComment}
                             setEditingItem={setEditingComment}
+                            repliesPagination={repliesPagination}
+                            repliesCount={c.replies_count}
                         />
                     ))
                 ) : (

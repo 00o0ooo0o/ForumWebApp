@@ -30,10 +30,11 @@ class CommentSerializer(serializers.ModelSerializer):
     author = serializers.CharField(source='author.username', read_only=True)
     post = serializers.CharField(source='post.id', read_only=True)
     replies = serializers.SerializerMethodField()
+    replies_count = serializers.IntegerField(source='descendants_count', read_only=True)
 
     class Meta: 
         model = Comment
-        fields = ['id', 'post', 'author', 'parent', 'content', 'created_at', 'replies']
+        fields = ['id', 'post', 'author', 'parent', 'content', 'created_at', 'replies', 'replies_count']
 
     def validate_content(self, value):
         if not value.strip():
