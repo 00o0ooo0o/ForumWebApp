@@ -4,6 +4,7 @@ import { AuthContext } from '../AuthContext';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Comment } from './Comment';
+import { PaginatedReplyPage } from './PaginatedReplyPage';
 
 const PostPage = () => {
     const {username, isAuthenticated} = useContext(AuthContext);
@@ -43,7 +44,7 @@ const PostPage = () => {
         setPostContent('');
 
         getPost();
-    }, [post_id, isAuthenticated, navigate]);
+    }, [post_id, isAuthenticated]);
 
 
 
@@ -109,13 +110,24 @@ const PostPage = () => {
                 { content: contentToSend, parent_id: parent_id }, 
                 { withCredentials: true }
             );
+            const newCommentObj = res.data;
+
             if (parent_id != null){
-                setReplies(prev => ({...prev, [parent_id]: [...(prev[parent_id] || []), res.data]}));
+                setRepliesOpen(prev => ({ ...prev, [parent_id]: true }));
+                setReplies(prev => ({
+                    ...prev,
+                    [parent_id]: [...(prev[parent_id] || []), newCommentObj]
+                }));
+
+                setComment(prev =>
+                    prev.map(c => c.id === parent_id
+                        ? { ...c, replies_count: c.replies_count + 1 } : c)
+                );
+
                 setNewReply('');
                 setReplyTo(null);
-                setComment(prev => prev.map(c => c.id === parent_id ? { ...c, replies_count: c.replies_count + 1 } : c));
             } else {
-                setComment(prev => [...prev, res.data]);
+                setComment(prev => [...prev, newCommentObj]);
                 setNewComment('');
             } 
         } catch (err) { 
@@ -124,17 +136,16 @@ const PostPage = () => {
     };
 
 
+
     const handleDeleteComment = async (comment_id, parent_id) => {        
         try{
            await axios.delete(`/dashboard/comments/${comment_id}/delete/`, { withCredentials: true });       
             console.log('Comment deleted');
             if (parent_id != null){
                 setReplies(prev => ({...prev, [parent_id]: prev[parent_id].filter(r => r.id !== comment_id)}));
-                const parent = comment.find(c => c.id === parent_id);
                 const removedComment = replies[parent_id].find(r => r.id === comment_id);
                 const decrement = (removedComment?.replies_count || 0) + 1;
 
-                setReplies(prev => ({...prev, [parent_id]: prev[parent_id].filter(r => r.id !== comment_id)}));
                 setComment(prev => prev.map(c => c.id === parent_id ? { ...c, replies_count: c.replies_count - decrement } : c));
             } else {
                 setComment(prev => prev.filter(c => c.id !== comment_id)); 
@@ -251,6 +262,7 @@ const PostPage = () => {
                             setEditingItem={setEditingComment}
                             repliesPagination={repliesPagination}
                             repliesCount={c.replies_count}
+                            postId={c.post}
                         />
                     ))
                 ) : (
