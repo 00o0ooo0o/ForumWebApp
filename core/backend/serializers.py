@@ -28,26 +28,18 @@ class RegisterSerializer(serializers.ModelSerializer):
 
 class CommentSerializer(serializers.ModelSerializer):
     author = serializers.CharField(source='author.username', read_only=True)
-    post = serializers.CharField(source='post.id', read_only=True)
-    replies = serializers.SerializerMethodField()
+    post = serializers.IntegerField(source='post.id', read_only=True)
+    parent = serializers.IntegerField(source='parent.id', read_only=True)
     replies_count = serializers.IntegerField(source='descendants_count', read_only=True)
 
-    class Meta: 
+    class Meta:
         model = Comment
-        fields = ['id', 'post', 'author', 'parent', 'content', 'created_at', 'replies', 'replies_count']
+        fields = ['id', 'post', 'author', 'parent', 'content', 'created_at', 'replies_count']
 
     def validate_content(self, value):
         if not value.strip():
             raise serializers.ValidationError("Comment content cannot be empty")
         return value
-    
-    def get_replies(self, obj):
-        return CommentSerializer(
-            obj.replies.all(),
-            many=True,
-            context=self.context
-        ).data
-    
 
     
 class PostSerializer(serializers.ModelSerializer):

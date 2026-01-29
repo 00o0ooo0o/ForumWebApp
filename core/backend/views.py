@@ -15,6 +15,7 @@ from django.shortcuts import get_object_or_404
 from .serializers import RegisterSerializer, PostSerializer, CommentSerializer
 from .models import Post, Comment
 from .authentication import JWTAuthenticationFromCookie
+from rest_framework.views import APIView
 
 
 @api_view(['POST'])
@@ -111,7 +112,7 @@ def get_post_by_id(request, post_id):
     
     post_serializer = PostSerializer(post)
     root_comments = post.comments.filter(parent__isnull=True)
-    comment_serializer = CommentSerializer(root_comments, many=True, context={'request': request})
+    comment_serializer = CommentSerializer(root_comments, many=True, context={'request': request, 'max_depth': 7, 'base_depth': 0})
 
     return Response({
         "post": post_serializer.data,
@@ -218,9 +219,36 @@ def edit_comment(request, comment_id):
 def get_comment_replies(request, comment_id):
     limit = min(int(request.GET.get('limit', 5)), 50)
     offset = max(int(request.GET.get('offset', 0)), 0)
-    parent = get_object_or_404(Comment, pk=comment_id)
-    queryset = Comment.objects.filter(parent_id=comment_id).order_by('created_at')
+    queryset = (Comment.objects.filter(parent_id=comment_id).order_by('created_at'))
+
     total = queryset.count()
     replies = queryset[offset:offset + limit]
     serializer = CommentSerializer(replies, many=True)
-    return Response({"results": serializer.data, "has_more": offset + limit < total, "total_count": total})
+
+    return Response({
+        "results": serializer.data,
+        "has_more": offset + limit < total,
+        "total_count": total,
+    })
+
+
+
+MAX_NESTED_REPLIES = 7
+
+class CommentThreadView(APIView):
+    def get(self, request, post_id, comment_id, format=None):
+        comment = get_object_or_404(Comment, id=comment_id)
+        data = CommentSerializer(comment).data
+        data['replies'] = self.get_replies(comment, current_depth=1)
+        return Response(data)
+    
+
+    def get_replies(self, comment, current_depth=1):
+        replies = comment.replies.all().order_by('created_at')
+        serialized_replies = []
+        for reply in replies:
+            serialized = CommentSerializer(reply).data
+            serialized['replies'] = self.get_replies(reply, current_depth + 1)
+            serialized_replies.append(serialized)
+
+        return serialized_replies
