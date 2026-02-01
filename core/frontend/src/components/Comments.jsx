@@ -1,93 +1,115 @@
-import React, { useEffect, useState, useContext } from 'react';;
+import React, { useEffect, useState, useContext } from 'react';
 import { AuthContext } from '../AuthContext';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import axios from 'axios';
 
-const Comments = ({ post_id, comment_id}) => {
-    const {username, isAuthenticated} = useContext(AuthContext);
-    const navigate = useNavigate();
-    const [comment, setComment] = useState([]);
-    const [newComment, setNewComment] = useState(''); 
-    const [newReply, setNewReply] = useState(''); 
-    const [isCommentEditing, setIsCommentEditing] = useState(false);
-    const [commentContent, setCommentContent] = useState('');
-    const [replies, setReplies] = useState({}); //  1: [reply1, reply2],   2: [reply1], ...
-    const [repliesOpen, setRepliesOpen] = useState({});
-    const [replyTo, setReplyTo] = useState(null); 
+const Comments = ({ post_id, comment_id }) => {
+    const { username, isAuthenticated } = useContext(AuthContext);
+    const [rootComment, setRootComment] = useState(null);
+    const [newCommentContent, setNewCommentСontent] = useState('');
+    const [newReplyContent, setNewReplyContent] = useState('');
+    const [replyTo, setReplyTo] = useState(null);
+    const [isCommentEditing, setIsCommentEditing] = useState(null);
     const [repliesPagination, setRepliesPagination] = useState({});
     const [editingComment, setEditingComment] = useState(null);
-
+    const [repliesOpen, setRepliesOpen] = useState({});
     const MAX_NESTED_REPLIES = 7;
 
     useEffect(() => {
         const fetchComments = async () => {
             try {
                 if (comment_id) {
+                    //request from PaginatedReplyPage -> 
                     const res = await axios.get(`http://localhost:8000/api/posts/${post_id}/comments/${comment_id}/`, { withCredentials: true });
-                    const rootComment = res.data;
-                    setComment([rootComment]);
 
-                    if (rootComment.replies_count > 0) {
-                        fetchMoreReplies(rootComment.id);
-                        setRepliesOpen(prev => ({ ...prev, [rootComment.id]: true }));
-                    }
+                    const root = res.data.root_comment;
+                    root.replies = res.data.replies; 
+                    setRootComment(root);
                 } else if (post_id) {
+                    //request from PostPage -> 
                     const res = await axios.get(`http://localhost:8000/api/posts/${post_id}/`, { withCredentials: true });
-                    setComment(res.data.comments);
+
+                    setRootComment({
+                        id: null,
+                        replies: Array.isArray(res.data.comments?.replies) ? res.data.comments.replies : res.data.comments || []
+                    });
                 }
             } catch (err) {
                 console.error(err);
             }
         };
         fetchComments();
-     }, [post_id, comment_id, isAuthenticated]);
+    }, [post_id, comment_id, isAuthenticated]);
 
 
-
-    const handleAddComment = async (e, parent_id = null) => {
-        const contentToSend = parent_id ? newReply : newComment;
+    const handleAddComment = async (e, parentId = null) => {
         e.preventDefault();
-        try{
+        const content = parentId ? newReplyContent : newCommentContent;
+        if (!content.trim()) return;
+        try {
             const res = await axios.post(
-                `/dashboard/posts/${post_id}/comments/`, 
-                { content: contentToSend, parent_id: parent_id }, 
+                `/dashboard/posts/${post_id}/comments/`,
+                { content, parent_id: parentId },
                 { withCredentials: true }
             );
-            const newCommentObj = res.data;
 
-            if (parent_id != null){
-                setRepliesOpen(prev => ({ ...prev, [parent_id]: true }));
+            const newComment = res.data;
 
-                setReplies(prev => ({
-                    ...prev,
-                    [parent_id]: [...(prev[parent_id] || []), newCommentObj]
-                }));
+            setRootComment(prev => {
+                const insert = (comment) => {
+                    if (parentId === null && comment.id === null) {
+                        return {
+                            ...comment,
+                            replies: [...(comment.replies || []), newComment]
+                        };
+                    }
+                    if (comment.id === parentId) {
+                        return {
+                            ...comment,
+                            replies: [...(comment.replies || []), newComment]
+                        };
+                    }
+                    if (!comment.replies) return comment;
+                    return {
+                        ...comment,
+                        replies: comment.replies.map(r => insert(r)) 
+                    };
+                };
+                return insert(prev);
+            });
+
+            if (parentId) {
+                setNewReplyContent('');
+                setReplyTo(null);
+                setRepliesOpen(prev => ({ ...prev, [parentId]: true }));
             } else {
-                setComment(prev => [...prev, newCommentObj]);
-            } 
-
-            setNewReply('');
-            setReplyTo(null);
-            setNewComment('');
-
-        } catch (err) { 
+                setNewCommentСontent('');
+            }
+        } catch (err) {
             console.error(err.response?.data || err);
         }
     };
 
 
-    const handleDeleteComment = async (comment_id, parent_id) => {        
-        try{
-           await axios.delete(`/dashboard/comments/${comment_id}/delete/`, { withCredentials: true });       
-            if (parent_id != null){
-                const removedComment = replies[parent_id].find(r => r.id === comment_id);
-                setReplies(prev => ({...prev, [parent_id]: prev[parent_id].filter(r => r.id !== comment_id)}));
-                const decrement = (removedComment?.replies_count || 0) + 1;
 
-                setComment(prev => prev.map(c => c.id === parent_id ? { ...c, replies_count: c.replies_count - decrement } : c));
-            } else {
-                setComment(prev => prev.filter(c => c.id !== comment_id)); 
-            }                 
+    
+    const handleDeleteComment = async (comment_id) => {
+        try {
+            await axios.delete(`/dashboard/comments/${comment_id}/delete/`, { withCredentials: true });
+
+            const removeFromTree = (comment) => {
+                if (!comment.replies) return comment;
+                const newReplies = comment.replies
+                    .filter(r => r.id !== comment_id)
+                    .map(r => removeFromTree(r));
+                return { ...comment, replies: newReplies };
+            };
+
+            setRootComment(prev => {
+                if (!prev) return prev;
+                if (prev.id === comment_id) return null;
+                return removeFromTree(prev);
+            });
         } catch (err) {
             console.error(err.response?.data || err);
         }
@@ -97,67 +119,73 @@ const Comments = ({ post_id, comment_id}) => {
     const handleEditComment = async (e) => {
         e.preventDefault();
         if (!editingComment) return;
-        const { id, parent_id } = editingComment;
-        try{
-            const res = await axios.patch(`/dashboard/comments/${id}/edit/`,
-            {content: commentContent }, { withCredentials: true});
+        try {
+            const res = await axios.patch(
+                `/dashboard/comments/${editingComment.id}/edit/`,
+                { content: newCommentContent },
+                { withCredentials: true }
+            );
 
-            if (parent_id === null) {
-                setComment(prev => prev.map(c => c.id === id ? res.data : c));
-            } else {
-                setReplies(prev => ({...prev, [parent_id]: (prev[parent_id] || []).map(r => r.id === id ? { ...r, content: res.data.content } : r)}));
-            }
+            const updateTree = (comment) => {
+                if (comment.id === editingComment.id) {
+                    comment.content = res.data.content;
+                } else if (comment.replies) {
+                    comment.replies.forEach(updateTree);
+                }
+            };
+
+            setRootComment(prev => {
+                if (!prev) return prev;
+                updateTree(prev);
+                return { ...prev };
+            });
+
             setEditingComment(null);
-            setCommentContent('');
+            setNewCommentСontent('');
             setIsCommentEditing(false);
-        } catch (err) { 
+        } catch (err) {
             console.error(err.response?.data || err);
         }
     };
 
 
-
-    const handleToggleReplies = (comment) => {
-        const isOpen = repliesOpen[comment.id];
-        if (!isOpen && comment.replies_count > 0 && (replies[comment.id]?.length || 0) < comment.replies_count){
-            fetchMoreReplies(comment.id);
-        }
-        setRepliesOpen(prev => ({ ...prev, [comment.id]: !isOpen }));
-    };
-
-
-
-    const fetchMoreReplies = async (comment_id) => { 
-        const pagination = repliesPagination[comment_id] || { limit: 5, offset: 0, hasMore: true };
-        if (!pagination.hasMore) return;
+    const fetchMoreReplies = async (commentId) => {
         try {
-            const res = await axios.get(
-                `/api/comments/${comment_id}/replies/?limit=${pagination.limit}&offset=${pagination.offset}`
-            );
+            const pagination = repliesPagination[commentId] || { limit: 5, offset: 0, hasMore: true };
 
-            const results = res.data.results ?? [];
+            if (!pagination.hasMore) return;
 
-            setReplies(prev => {
-                const existingIds = new Set(
-                (prev[comment_id] || []).map(r => r.id)
-                );
+            const res = await axios.get(`/api/posts/${post_id}/comments/${commentId}/?limit=${pagination.limit}&offset=${pagination.offset}`);
 
-                const newReplies = results.filter(
-                r => !existingIds.has(r.id)
-                );
+            const newReplies = res.data.replies ?? [];
+
+            const insertReplies = (comment) => {
+                if (comment.id === commentId) {
+                    return {
+                        ...comment,
+                        replies: [
+                            ...(comment.replies || []),
+                            ...newReplies
+                        ]
+                    };
+                }
+
+                if (!comment.replies) return comment;
 
                 return {
-                ...prev,
-                [comment_id]: [...(prev[comment_id] || []), ...newReplies]
+                    ...comment,
+                    replies: comment.replies.map(r => insertReplies(r))  
                 };
-            });
+            };
+
+            setRootComment(prev => insertReplies(prev));
 
             setRepliesPagination(prev => ({
                 ...prev,
-                [comment_id]: {
-                ...pagination,
-                offset: pagination.offset + pagination.limit,
-                hasMore: res.data.has_more
+                [commentId]: {
+                    ...pagination,
+                    offset: pagination.offset + pagination.limit,
+                    hasMore: res.data.has_more
                 }
             }));
 
@@ -167,71 +195,78 @@ const Comments = ({ post_id, comment_id}) => {
     };
 
 
+
+    const handleToggleReplies = async (comment) => {
+        const isOpen = repliesOpen[comment.id];
+
+        if (!isOpen && comment.descendants_count > 0 && (!comment.replies || comment.replies.length === 0)) {
+            await fetchMoreReplies(comment.id);
+        }
+
+        setRepliesOpen(prev => ({
+            ...prev,
+            [comment.id]: !isOpen
+        }));
+    };
+
+
+
     const renderComment = (comment, level = 0) => {
+        const hasReplies = comment.descendants_count > 0;
+        const isOpen = repliesOpen[comment.id];
+
         return (
             <div key={comment.id} style={{ paddingLeft: `${level * 20}px` }}>
                 <div>
                     <strong>{comment.author}</strong>: {comment.content}
-                    {level < MAX_NESTED_REPLIES && (
+                    
+                    {level < MAX_NESTED_REPLIES && hasReplies && (
                         <button onClick={() => handleToggleReplies(comment)}>
-                            {repliesOpen[comment.id] ? 'hide' : 'open'}
+                            {isOpen ? 'Less' : 'More'}
                         </button>
                     )}
                 </div>
+
 
                 {isAuthenticated && (
                     <div style={{display: 'flex'}}>
                         {username === comment.author && (
                             <>
-                                <button onClick={() => handleDeleteComment(comment.id, comment.parent_id)}>delete</button>
+                                <button onClick={() => handleDeleteComment(comment.id)}>Delete</button>
                                 <button onClick={() => {
-                                    setCommentContent(comment.content);
+                                    setNewCommentСontent(comment.content);
                                     setIsCommentEditing(true);
-                                    setEditingComment({
-                                        id: comment.id,
-                                        parent_id: comment.parent_id
-                                    });
-                                }}>edit</button>
+                                    setEditingComment({id: comment.id});
+                                }}>Edit</button>
                             </>
                         )}
-                        <button onClick={() => setReplyTo(comment.id)}>reply</button>
+                        <button onClick={() => setReplyTo(comment.id)}>Reply</button>
                     </div>
                 )}
 
                 <div>
-                    {comment.replies_count} {comment.replies_count === 1 ? 'reply' : 'replies'}
+                    <span>{comment.descendants_count} repl{comment.descendants_count === 1 ? 'y' : 'ies'}</span>
                 </div>
 
-                {level < MAX_NESTED_REPLIES && repliesOpen[comment.id] && replies[comment.id] && (
-                    <>
-                        {replies[comment.id].map(reply => (
-                            <React.Fragment key={reply.id}>
-                                {renderComment(reply, level + 1)}
-                            </React.Fragment>
-                        ))}
-
-                        {repliesPagination[comment.id]?.hasMore && (
-                            <button onClick={() => fetchMoreReplies(comment.id)}>more</button>
-                        )}
-                    </>
-                )}
-
-                {level >= MAX_NESTED_REPLIES && (comment.replies_count || 0) > 0 && (
-                    <Link to={`/posts/${post_id}/comments/${comment.id}`}>
-                        View {comment.replies_count} more repl{comment.replies_count === 1 ? 'y' : 'ies'}...
-                    </Link>
-                )}
+                
+                {isOpen && comment.replies?.map(r => renderComment(r, level + 1))}
 
                 {replyTo === comment.id && isAuthenticated && (
                     <form onSubmit={(e) => handleAddComment(e, comment.id)}>
                         <textarea
-                            value={newReply}
-                            onChange={(e) => setNewReply(e.target.value)}
+                            value={newReplyContent}
+                            onChange={e => setNewReplyContent(e.target.value)}
                             placeholder="Write a reply..."
                         />
                         <button type="submit">Send</button>
                         <button type="button" onClick={() => setReplyTo(null)}>Cancel</button>
                     </form>
+                )}
+
+                {level >= MAX_NESTED_REPLIES && hasReplies && (
+                    <Link to={`/posts/${post_id}/comments/${comment.id}`}>
+                        View {comment.descendants_count} more repl{comment.descendants_count === 1 ? 'y' : 'ies'}...
+                    </Link>
                 )}
             </div>
         );
@@ -244,22 +279,17 @@ const Comments = ({ post_id, comment_id}) => {
             {!isCommentEditing ? (
                 post_id ? (
                     <div>
-                        {comment.length > 0 ? (
-                            comment.map(c => (
-                                renderComment(c)
-                            ))
-                        ) : (
-                            <p>No comments yet...</p>
-                        )}
+                        {rootComment?.replies?.map(c => renderComment(c))}
+
         
                         {isAuthenticated? (
                             <form onSubmit={handleAddComment}>
                                 <div>
-                                <label>Content:</label>
-                                <textarea
-                                    value={newComment}
-                                    onChange={(e) => setNewComment(e.target.value)}
-                                    placeholder="Enter comment content"/>
+                                    <label>Content:</label>
+                                    <textarea
+                                        value={newCommentContent}
+                                        onChange={(e) => setNewCommentСontent(e.target.value)}
+                                        placeholder="Enter comment content"/>
                                 </div>
         
                                 <button type="submit">Post</button>
@@ -277,16 +307,15 @@ const Comments = ({ post_id, comment_id}) => {
                     <div>
                         <label>Your comment:</label>
                         <textarea
-                        value={commentContent}
-                        onChange={(e) => setCommentContent(e.target.value)}
+                        value={newCommentContent}
+                        onChange={(e) => setNewCommentСontent(e.target.value)}
                         placeholder="Edit comment content"/>
                     </div>
 
-                    <button type="submit">Submit changes</button>
+                    <button type="submit">Submit</button>
                     <button type="button" onClick={() => setIsCommentEditing(false)}>Cancel</button>
                 </form>
             )}
-
         </div>
     );
 };

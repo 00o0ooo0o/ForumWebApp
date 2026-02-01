@@ -15,7 +15,8 @@ from django.shortcuts import get_object_or_404
 from .serializers import RegisterSerializer, PostSerializer, CommentSerializer
 from .models import Post, Comment
 from .authentication import JWTAuthenticationFromCookie
-from rest_framework.views import APIView
+from django_cte import With
+from django.db.models import Q
 
 
 @api_view(['POST'])
@@ -89,7 +90,7 @@ def logout_view(request):
 
 @api_view(['GET'])
 def get_post_list(request):
-    posts = Post.objects.all()
+    posts = Post.objects.select_related('author').prefetch_related('likes')
     serializer = PostSerializer(posts, many=True)
     return Response(serializer.data)
 
@@ -105,18 +106,29 @@ def create_post(request):
 
 @api_view(['GET'])
 def get_post_by_id(request, post_id):
-    try: 
-        post = Post.objects.get(id=post_id)
-    except Post.DoesNotExist:
-        return Response({"error": "Post not found"}, status=404)
-    
+    post = Post.objects.select_related('author').get(id=post_id)  
     post_serializer = PostSerializer(post)
-    root_comments = post.comments.filter(parent__isnull=True)
-    comment_serializer = CommentSerializer(root_comments, many=True, context={'request': request, 'max_depth': 7, 'base_depth': 0})
+
+    root_comments = post.comments.select_related('author').filter(depth=0).order_by('created_at')
+
+    comments = {
+        "id": None,
+        "replies": [
+            {
+                "id": rc.id,
+                "author": rc.author.username,
+                "content": rc.content,
+                "depth": rc.depth,
+                "descendants_count": rc.descendants_count,
+                "replies": []
+            }
+            for rc in root_comments
+        ]
+    }
 
     return Response({
         "post": post_serializer.data,
-        "comments": comment_serializer.data
+        "comments": comments
     })
 
 
@@ -136,7 +148,7 @@ def delete_post(request, post_id):
 @api_view(['PATCH'])
 @permission_classes([IsAuthenticated])
 def edit_post(request, post_id):
-    post = get_object_or_404(Post, pk=post_id)
+    post = Post.objects.prefetch_related('likes').get(pk=post_id)
 
     if 'like' in request.data:
         if request.user in post.likes.all():
@@ -169,21 +181,19 @@ def edit_post(request, post_id):
 def create_comment(request, post_id):
     post = get_object_or_404(Post, id=post_id)
 
-    parent = None
     parent_id = request.data.get('parent_id')
+    parent_comment = None
+
     if parent_id:
-        parent = get_object_or_404(Comment, id=parent_id, post=post)
+        parent_comment = get_object_or_404(Comment, id=parent_id, post=post)
 
     serializer = CommentSerializer(data=request.data)
-    if serializer.is_valid():
-        serializer.save(
-            author=request.user,
-            post=post,
-            parent=parent  
-        )
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    comment = serializer.save(author=request.user, post=post, parent=parent_comment)
 
+    return Response(CommentSerializer(comment).data, status=status.HTTP_201_CREATED)
 
 
 @api_view(['DELETE'])
@@ -215,40 +225,53 @@ def edit_comment(request, comment_id):
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-@api_view(['GET'])
-def get_comment_replies(request, comment_id):
-    limit = min(int(request.GET.get('limit', 5)), 50)
-    offset = max(int(request.GET.get('offset', 0)), 0)
-    queryset = (Comment.objects.filter(parent_id=comment_id).order_by('created_at'))
-
-    total = queryset.count()
-    replies = queryset[offset:offset + limit]
-    serializer = CommentSerializer(replies, many=True)
-
-    return Response({
-        "results": serializer.data,
-        "has_more": offset + limit < total,
-        "total_count": total,
-    })
-
-
-
 MAX_NESTED_REPLIES = 7
 
-class CommentThreadView(APIView):
-    def get(self, request, post_id, comment_id, format=None):
-        comment = get_object_or_404(Comment, id=comment_id)
-        data = CommentSerializer(comment).data
-        data['replies'] = self.get_replies(comment, current_depth=1)
-        return Response(data)
-    
+@api_view(['GET'])
+def get_comment_tree(request, comment_id, **kwargs):
+    limit = min(int(request.GET.get('limit', 5)), 50)
+    offset = max(int(request.GET.get('offset', 0)), 0)
 
-    def get_replies(self, comment, current_depth=1):
-        replies = comment.replies.all().order_by('created_at')
-        serialized_replies = []
-        for reply in replies:
-            serialized = CommentSerializer(reply).data
-            serialized['replies'] = self.get_replies(reply, current_depth + 1)
-            serialized_replies.append(serialized)
+    root = get_object_or_404(Comment.objects.select_related('author'), pk=comment_id)
 
-        return serialized_replies
+    all_replies = Comment.objects.filter(
+        path__startswith=root.path
+    ).select_related('author').order_by('path')
+
+
+    children_map = {}
+    for comment in all_replies:
+        parent_id = comment.parent_id  #
+        children_map.setdefault(parent_id, []).append(comment)
+
+    def build_tree(comment):
+        return {
+            'id': comment.id,
+            'author': comment.author.username,
+            'content': comment.content,
+            'created_at': comment.created_at.isoformat(),
+            'depth': comment.depth,
+            'descendants_count': comment.descendants_count,
+            'replies': [build_tree(c) for c in children_map.get(comment.id, [])]
+        }
+
+    root_children = children_map.get(root.id, [])
+    paginated_children = root_children[offset:offset+limit]
+    has_more = offset + limit < len(root_children)
+
+    tree = {
+        'id': root.id,
+        'author': root.author.username,
+        'content': root.content,
+        'created_at': root.created_at.isoformat(),
+        'depth': root.depth,
+        'descendants_count': root.descendants_count,
+        'replies': [build_tree(c) for c in paginated_children]
+    }
+
+    return Response({
+        'root_comment': tree,
+        'replies': tree['replies'],
+        'total_replies': len(root_children),
+        'has_more': has_more
+    })
