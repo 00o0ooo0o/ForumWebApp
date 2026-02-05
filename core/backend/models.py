@@ -1,9 +1,10 @@
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.db import models
 from django.db import models, transaction
-from django.db.models import F
+from django.db.models import F, Func, Value
 from django.db.models.signals import pre_delete
 from django.dispatch import receiver
+from django.contrib import admin
 
 class CustomUserManager(BaseUserManager):
     def create_user(self, username, password, **extra_fields):
@@ -35,7 +36,6 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     def __str__(self):
         return self.email
     
-
 
 class Post(models.Model):
     author = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='posts')
@@ -119,6 +119,13 @@ def update_descendants_count_on_delete(sender, instance, **kwargs):
     parent = instance.parent
     while parent:
         Comment.objects.filter(pk=parent.pk).update(
-            descendants_count=F('descendants_count') - total_to_remove
+            descendants_count=Func(
+                F('descendants_count') - total_to_remove,
+                Value(0),
+                function='MAX'
+            )
         )
         parent = parent.parent
+
+admin.site.register(Post)
+admin.site.register(Comment)

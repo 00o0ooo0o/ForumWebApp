@@ -27,7 +27,6 @@ const GuestHomePage = () => {
                     <Link to={`/posts/${post.id}`}>
                         <h3>{post.title}</h3>
                     </Link>
-                    <p>{post.content}</p>
                     <span>by {post.author}</span>
                 </div>
             ))}

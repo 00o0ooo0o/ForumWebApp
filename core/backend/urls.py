@@ -1,6 +1,6 @@
 from django.urls import path
 from .views import register, login, auth_status, logout_view, get_post_list, create_post, get_post_by_id 
-from .views import delete_post, edit_post, create_comment, delete_comment, edit_comment, get_comment_tree
+from .views import delete_post, edit_post, create_comment, delete_comment, edit_comment, get_comment_tree, get_search_results
 
 urlpatterns = [
     path("login/", login),
@@ -15,5 +15,6 @@ urlpatterns = [
     path('posts/<int:post_id>/comments/', create_comment),
     path('comments/<int:comment_id>/delete/', delete_comment),
     path('comments/<int:comment_id>/edit/', edit_comment),
-    path('posts/<int:post_id>/comments/<int:comment_id>/', get_comment_tree)
+    path('posts/<int:post_id>/comments/<int:comment_id>/', get_comment_tree),
+    path('search/', get_search_results)
 ]

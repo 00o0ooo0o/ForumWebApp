@@ -54,3 +54,12 @@
   object-fit: contain;
   cursor: pointer;
 }
+
+.footer{
+  margin-top: 1000px;
+  background-color: #222;
+  color: #fff;
+  padding: 20px;
+  text-align: center;
+  font-size: 16px;
+}

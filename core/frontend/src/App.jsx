@@ -9,6 +9,7 @@ import { AuthProvider } from './AuthContext';
 import { PostPage } from './pages/PostPage';
 import { PaginatedReplyPage } from './pages/PaginatedReplyPage';
 import './css/App.css'
+import { SearchResultsPage } from './pages/SearchResultsPage';
 
 function App() {
 
@@ -20,6 +21,7 @@ function App() {
           <Route index element={<GuestHomePage />} />
           <Route path="posts/:post_id" element={<PostPage />} />
           <Route path="posts/:post_id/comments/:comment_id" element={<PaginatedReplyPage />} />
+          <Route path="search" element={<SearchResultsPage/>}/>
 
           <Route element={<ProtectedRoutes />}>
             <Route path="member" element={<MemberHomePage />} />

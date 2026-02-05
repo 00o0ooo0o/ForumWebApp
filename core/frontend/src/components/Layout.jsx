@@ -5,6 +5,7 @@ import { Login } from '../pages/Login';
 import { Signup } from '../pages/Register';
 import { AuthContext } from '../AuthContext';
 import '../css/Layout.css';
+import { SearchBar } from './SearchBar';
 
 export const Layout = () => {
     const { isAuthenticated, username, logout } = useContext(AuthContext);
@@ -26,7 +27,7 @@ export const Layout = () => {
     return (
         <>
             <header className="layout-header">
-                <div className="nav-left">
+                <div className="nav-left" style={{display: 'flex'}}>
                     {isAuthenticated ? ( 
                         <Link to="/member" className="home-link">
                             <img src="/MainPageLogo.png" className="logo" />
@@ -36,6 +37,7 @@ export const Layout = () => {
                             <img src="/MainPageLogo.png" className="logo" />
                         </Link>              
                     )}
+                    <SearchBar/>
                 </div>
 
                 <div className="nav-right">
@@ -67,7 +69,7 @@ export const Layout = () => {
             </main>
 
 
-            <footer>2026</footer>
+            <footer className="footer">2026</footer>
         </>
     );
 };

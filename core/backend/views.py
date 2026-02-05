@@ -17,6 +17,7 @@ from .models import Post, Comment
 from .authentication import JWTAuthenticationFromCookie
 from django_cte import With
 from django.db.models import Q
+from django.contrib.postgres.search import SearchQuery, SearchVector, SearchRank
 
 
 @api_view(['POST'])
@@ -273,5 +274,41 @@ def get_comment_tree(request, comment_id, **kwargs):
         'root_comment': tree,
         'replies': tree['replies'],
         'total_replies': len(root_children),
+        'has_more': has_more
+    })
+
+
+
+@api_view(['GET'])
+def get_search_results(request):
+    q = request.GET.get('q', '').strip()
+    try:
+        limit = int(request.GET.get('limit', 10))
+    except ValueError:
+        limit = 10
+
+    try:
+        offset = max(int(request.GET.get('offset', 0)), 0)
+    except ValueError:
+        offset = 0
+
+    if len(q) < 1:
+        return Response({'results': [], 'has_more': False})
+
+    vector = SearchVector('title')
+    query = SearchQuery(q)
+
+    qs = (Post.objects.annotate(search=vector, rank=SearchRank(vector, query))
+        .filter(search=query)
+        .values('id', 'title')
+        .order_by('-rank')
+    )
+
+    total_count = qs.count()
+    results = list(qs[offset:offset+limit])  
+    has_more = offset + limit < total_count
+
+    return Response({
+        'results': results,
         'has_more': has_more
     })
